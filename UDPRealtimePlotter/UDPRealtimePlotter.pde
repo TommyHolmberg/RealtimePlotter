@@ -6,18 +6,6 @@ import java.awt.BorderLayout;
 import controlP5.*; // http://www.sojamo.de/libraries/controlP5/
 import processing.serial.*;
 
-/* SETTINGS BEGIN */
-
-// Serial port to connect to
-String serialPortName = "/dev/tty.usbmodem1411";
-
-// If you want to debug the plotter without using a real serial port set this to true
-boolean mockupSerial = true;
-
-/* SETTINGS END */
-
-Serial serialPort; // Serial port object
-
 // interface stuff
 ControlP5 cp5;
 
@@ -26,15 +14,15 @@ int numberOfValues = 7; // The config file plotter_config.json should be edited 
 float[] sValues = new float[numberOfValues]; // First four are quaternions (w, x, y, z) and the last three are linear accelerations (x, y, z);
 long time;
 long lastTime;
-long firstTime;
 
 // Settings for the plotter are saved in this file
 JSONObject plotterConfigJSON;
 
 // plots
+int samplesInWindow = 200;
 Graph LineGraph = new Graph(225, 70, 600, 400, color (20, 20, 200));
-float[][] lineGraphValues = new float[numberOfValues][100];
-float[] lineGraphSampleNumbers = new float[100];
+float[][] lineGraphValues = new float[numberOfValues][samplesInWindow];
+float[] lineGraphSampleNumbers = new float[samplesInWindow];
 color[] graphColors = new color[numberOfValues];
 
 // helper for saving the executing path
@@ -73,14 +61,7 @@ void setup() {
         lineGraphSampleNumbers[k] = k;
     }
   }
-
-  // start serial communication
-  if (!mockupSerial) {
-    //String serialPortName = Serial.list()[3];
-    serialPort = new Serial(this, serialPortName, 115200);
-  } else
-    serialPort = null;
-
+ 
   // build the gui
   int x = 170;
   int y = 60;
@@ -90,13 +71,13 @@ void setup() {
   cp5.addTextarea("UDP").setText("Waiting for UDP packet.").setFont(cf).setPosition(x=400, y=200).setColorForeground(color(0,0,0)).setColor(color(28)).setSize(400,200);
   
   cp5.addTextlabel("label").setText("on/off").setPosition(x=13, y=20).setColor(0);
-  cp5.addTextlabel("multipliers").setText("multipliers").setPosition(x=55, y).setColor(0);
+  cp5.addTextlabel("value").setText("value").setPosition(x=55, y).setColor(0);
   
   x=60;
   y=-10;
   for (int i = 1; i-1 < numberOfValues; i++) {
     
-    cp5.addTextfield("Line " + i).setPosition(x, y=y+40).setText(getPlotterConfigString("lgMultiplier" + i)).setColorCaptionLabel(0).setWidth(40).setAutoClear(false);  
+    cp5.addTextfield("Line " + i).setPosition(x, y=y+40).setText(getPlotterConfigString("lgValue" + i)).setColorCaptionLabel(0).setWidth(40).setAutoClear(false);  
   }
   
   // Set line graph colors from config file
@@ -134,12 +115,19 @@ void draw() {
             lineGraphValues[i][k] = lineGraphValues[i][k+1];
           }
 
-          lineGraphValues[i][lineGraphValues[i].length-1] = sValues[i]*float(getPlotterConfigString("lgMultiplier"+(i+1)));
+          lineGraphValues[i][lineGraphValues[i].length-1] = sValues[i];//*float(getPlotterConfigString("lgMultiplier"+(i+1)));
         }
       }
       catch (Exception e) {
       }
+      
+      // Update values
+      if (int(getPlotterConfigString("lgVisible"+(i+1))) == 1) {
+        cp5.get(Textfield.class, "Line " + (i+1)).setText(String.format("%.3f", sValues[i]));
+      }
     }
+    
+
 
     // draw the bar chart
     background(255); 
